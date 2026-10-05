@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8"><title>J.A.R.V.I.S.</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+:root{--c:#37b6ff}
+*{box-sizing:border-box}html,body{margin:0;height:100%;overflow:hidden;background:#000;font-family:system-ui,sans-serif;color:#dff4ff}
+video{position:fixed;inset:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1)}
+#start{position:fixed;inset:0;display:flex;flex-direction:column;gap:14px;align-items:center;justify-content:center;background:#020a14;z-index:99;text-align:center;padding:20px}
+#start button{background:transparent;border:2px solid var(--c);color:var(--c);padding:14px 34px;font-size:18px;border-radius:40px;cursor:pointer;letter-spacing:3px}
+#start small{opacity:.7;max-width:460px;line-height:1.5}
+#orb{position:fixed;left:0;top:0;width:170px;height:170px;border-radius:50%;display:none;z-index:5;
+ border:4px solid var(--c);box-shadow:0 0 30px var(--c),inset 0 0 30px var(--c);background:radial-gradient(circle,#37b6ff33,#0a2a4a22 70%);
+ align-items:center;justify-content:center;font-size:11px;letter-spacing:4px;color:var(--c)}
+#orb span{position:relative;z-index:2;text-shadow:0 0 8px var(--c)}
+.rg{position:absolute;border-radius:50%;pointer-events:none}
+.r1{inset:-14%;border:3px solid transparent;border-top-color:var(--c);border-bottom-color:var(--c);animation:sp 3s linear infinite;filter:drop-shadow(0 0 6px var(--c))}
+.r2{inset:-4%;border:2px dotted #9fe0ff;animation:sp 9s linear infinite reverse}
+.r3{inset:8%;background:conic-gradient(var(--c) 0 20%,transparent 20% 33%,var(--c) 33% 58%,transparent 58% 70%,var(--c) 70% 90%,transparent 90%);-webkit-mask:radial-gradient(circle,transparent 66%,#000 67%,#000 74%,transparent 75%);mask:radial-gradient(circle,transparent 66%,#000 67%,#000 74%,transparent 75%);animation:sp 5s linear infinite}
+.r4{inset:20%;background:repeating-conic-gradient(var(--c) 0 3deg,transparent 3deg 12deg);-webkit-mask:radial-gradient(circle,transparent 70%,#000 71%,#000 80%,transparent 81%);mask:radial-gradient(circle,transparent 70%,#000 71%,#000 80%,transparent 81%);animation:sp 14s linear infinite reverse}
+.r5{inset:32%;border:2px solid #9fe0ff;border-left-color:transparent;border-right-color:transparent;animation:sp 2s linear infinite reverse}
+#orb.talk{animation:pl .5s infinite alternate}
+@keyframes sp{to{transform:rotate(360deg)}}@keyframes pl{to{filter:brightness(1.7)}}
+.w{position:fixed;will-change:transform;z-index:4;background:rgba(55,182,255,.2);border:1px solid rgba(120,200,255,.45);border-radius:14px;box-shadow:0 14px 34px -8px rgba(0,0,0,.55);backdrop-filter:blur(11px);display:flex;flex-direction:column;overflow:hidden;min-width:160px;min-height:110px;resize:both}
+.w .t{padding:6px 10px;font-size:12px;letter-spacing:2px;color:var(--c);display:flex;justify-content:space-between;cursor:move;border-bottom:1px solid rgba(255,255,255,.12)}
+.w .t b{cursor:pointer;font-size:18px;padding:2px 12px;margin:-2px -6px;border-radius:6px}.hot{background:#ff4d4d!important;color:#fff!important;box-shadow:0 0 14px #ff4d4d}.w .b{flex:1;overflow:auto;padding:8px;font-size:14px;line-height:1.4}
+.w iframe,.w img,.w video{width:100%;height:100%;border:0;border-radius:8px;object-fit:contain}
+.w button{background:var(--c);border:0;border-radius:8px;padding:8px 14px;font-weight:600;cursor:pointer}
+.hold{outline:3px solid #fff}
+.ping{position:fixed;width:20px;height:20px;margin:-10px;border-radius:50%;border:3px solid #fff;z-index:8;pointer-events:none;animation:pg .5s ease-out forwards}@keyframes pg{to{transform:scale(4);opacity:0}}
+#hud{position:fixed;left:12px;bottom:12px;z-index:6;font-size:12px;background:#000a;padding:8px 12px;border-radius:8px;max-width:60vw}
+.dot{position:fixed;width:18px;height:18px;border-radius:50%;background:#fff8;border:2px solid #fff;z-index:7;display:none;pointer-events:none;margin:-9px}
+#scanbox{position:fixed;border:3px solid var(--c);border-radius:10px;box-shadow:0 0 18px #37b6ffaa;z-index:6;display:none;pointer-events:none;transition:left .15s,top .15s,width .15s,height .15s}
+</style></head><body>
+<video id="v" playsinline muted></video>
+<div id="orb"><i class="rg r1"></i><i class="rg r2"></i><i class="rg r3"></i><i class="rg r4"></i><i class="rg r5"></i><span>JARVIS</span></div>
+<div class="dot" id="d0"></div><div class="dot" id="d1"></div>
+<div id="hud">Junta las manos para invocarme · pinza = mover · doble pinza rápida = apretar · pinza con 2 manos = agrandar · "Jarvis, agranda"</div>
+<div id="start"><h1 style="color:var(--c);letter-spacing:6px;margin:0">J.A.R.V.I.S.</h1>
+<button id="go">ACTIVAR</button>
+<small>Abrilo con Chrome desde tu computadora (doble clic al archivo). Aceptá cámara y micrófono, y permití ventanas emergentes para que pueda abrir pestañas.</small></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/hands.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+<script>
+/* ====== CONFIG ====== */
+const CONFIG={
+  // Pegá acá cualquier playlist/canción/álbum de TU Spotify (Compartir > Copiar enlace). Con tu sesión abierta en Chrome suena completo.
+  spotifyEmbed:"https://open.spotify.com/embed/playlist/37i9dQZF1DXcBWIGoYBM5M",
+  // ALEXA vía Voice Monkey (voicemonkey.io). Pegá tu token y el ID de cada "Routine Trigger" que crees allí.
+  alexa:{
+    token:"f85f6-f055b-2890c-0a744-c528b-32549-9c-731051c2-ce26-4b82-b0a9-4c479d0ec1ee",
+    // Un dispositivo por cosa que quieras controlar. "alias" = cómo le vas a decir. Pegá el ID del disparador de encender y el de apagar.
+    dispositivos:[
+      {nombre:"Luz", alias:["luz","lampara","foco"], encender:"prender-luz-x1scg", apagar:"apagar-luz-m2xmr"}
+      // ,{nombre:"Enchufe", alias:["enchufe","ventilador"], encender:"...", apagar:"..."}
+    ],
+    acciones:[] // opcional: órdenes sueltas {nombre:"Modo cine", frases:["modo cine"], device:"ID"}
+  },
+  // GOOGLE (Gmail + Classroom). Pegá el Client ID de Google Cloud Console (tipo "...apps.googleusercontent.com").
+  google:{
+    clientId:"115677447111-smil5jpb5l1id4to1eds8rfn2fvvlfp4.apps.googleusercontent.com",
+    scopes:"https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/classroom.courses.readonly https://www.googleapis.com/auth/classroom.coursework.me.readonly"
+  },
+  wake:"jarvis", saludo:"Hola, señor. ¿Cómo está?"
+};
+const $=id=>document.getElementById(id), orb=$("orb"), v=$("v");
+let orbOn=false, awakeUntil=0, z=10;
+
+/* ====== VOZ (salida) ====== */
+let voz=null;
+function elegirVoz(){const vs=speechSynthesis.getVoices().filter(x=>/^es/i.test(x.lang));
+ voz=vs.find(x=>/jorge|diego|pablo|raul|raúl|male|google español/i.test(x.name))||vs.find(x=>/es-(ES|MX|AR|US)/i.test(x.lang))||vs[0]||null}
+speechSynthesis.onvoiceschanged=elegirVoz;elegirVoz();
+function decirVar(arr){decir(arr[Math.floor(Math.random()*arr.length)])}
+function decir(t){const u=new SpeechSynthesisUtterance(t);if(voz)u.voice=voz;u.lang=voz?voz.lang:"es-ES";u.pitch=.55;u.rate=.95;
+ u.onstart=()=>orb.classList.add("talk");u.onend=()=>orb.classList.remove("talk");speechSynthesis.cancel();speechSynthesis.speak(u)}
+
+/* ====== WIDGETS ====== */
+function widget(titulo,html,w=360,h=260,x,y){
+ const e=document.createElement("div");e.className="w";e.style.cssText=`width:${w}px;height:${h}px;left:${x??(innerWidth/2-w/2)}px;top:${y??(innerHeight/2-h/2)}px;z-index:${++z}`;
+ e.innerHTML=`<div class="t"><span>${titulo}</span><b title="cerrar">✕</b></div><div class="b"></div>`;
+ const b=e.querySelector(".b");typeof html==="string"?b.innerHTML=html:b.appendChild(html);
+ e.querySelector("b").onclick=()=>e.remove();
+ // arrastre con mouse también
+ const t=e.querySelector(".t");t.onmousedown=ev=>{const dx=ev.clientX-e.offsetLeft,dy=ev.clientY-e.offsetTop;
+  const mv=m=>{e.style.left=m.clientX-dx+"px";e.style.top=m.clientY-dy+"px"};
+  document.addEventListener("mousemove",mv);document.addEventListener("mouseup",()=>document.removeEventListener("mousemove",mv),{once:true})};
+ document.body.appendChild(e);return e}
+function abrirSpotify(){
+ const box=document.createElement("div");box.style.cssText="display:flex;flex-direction:column;height:100%;gap:6px";
+ const host=document.createElement("div");host.style.cssText="flex:1;min-height:0";host.innerHTML="<div></div>";
+ const fila=document.createElement("div");fila.style.cssText="display:flex;gap:6px";
+ const prev=document.createElement("button");prev.textContent="⏮";prev.style.flex="1";
+ const btn=document.createElement("button");btn.textContent="⏯";btn.style.flex="1";
+ const next=document.createElement("button");next.textContent="⏭";next.style.flex="1";
+ fila.append(prev,btn,next);box.append(host,fila);widget("SPOTIFY",box,380,460);
+ const m=CONFIG.spotifyEmbed.match(/embed\/(\w+)\/(\w+)/),uri=m?`spotify:${m[1]}:${m[2]}`:"spotify:playlist:37i9dQZF1DXcBWIGoYBM5M";
+ let ctl=null;btn.onclick=()=>ctl&&ctl.togglePlay();prev.onclick=()=>ctl&&ctl.previousTrack&&ctl.previousTrack();next.onclick=()=>ctl&&ctl.nextTrack&&ctl.nextTrack();
+ const plain=()=>{host.innerHTML=`<iframe src="${CONFIG.spotifyEmbed}?theme=0" allow="autoplay; encrypted-media; clipboard-write"></iframe>`};
+ const init=api=>api.createController(host.firstChild,{uri,width:"100%",height:"100%"},c=>ctl=c);
+ if(window._spApi)init(window._spApi);
+ else{window.onSpotifyIframeApiReady=a=>{window._spApi=a;init(a)};const sc=document.createElement("script");sc.src="https://open.spotify.com/embed/iframe-api/v1";sc.async=true;sc.onerror=plain;document.body.appendChild(sc)}}
+function widgetArchivos(){const i=document.createElement("input");i.type="file";i.multiple=true;i.hidden=true;
+ const w=document.createElement("div");w.innerHTML=`<button>Elegir archivos…</button><div class="out" style="margin-top:8px;height:calc(100% - 44px)"></div>`;
+ const out=w.querySelector(".out");w.querySelector("button").onclick=()=>i.click();
+ const mostrar=files=>{for(const f of files){const u=URL.createObjectURL(f);
+  if(f.type.startsWith("image/")||f.type==="application/pdf"&&false){widget(f.name,`<img src="${u}">`,420,320)}
+  else if(f.type.startsWith("video/")){widget(f.name,`<video src="${u}" controls></video>`,460,300)}
+  else if(f.type.startsWith("audio/")){widget(f.name,`<audio src="${u}" controls style="width:100%"></audio>`,360,140)}
+  else if(f.type==="application/pdf"){widget(f.name,`<iframe src="${u}"></iframe>`,460,480)}
+  else if(f.type.startsWith("text/")||/\.(txt|md|json|csv|js|html|css)$/i.test(f.name)){f.text().then(t=>{const p=document.createElement("pre");p.style.cssText="white-space:pre-wrap;margin:0;font-size:12px";p.textContent=t.slice(0,20000);widget(f.name,p,460,320)})}
+  else out.innerHTML+=`<div>${f.name} (${(f.size/1024).toFixed(0)} KB) — tipo no visible</div>`}};
+ i.onchange=()=>mostrar(i.files);window._mostrar=mostrar;
+ w.appendChild(i);widget("ARCHIVOS",w,340,200)}
+
+/* ====== WIKIPEDIA (widget) ====== */
+let _gToken=null;
+function googleLogin(){return new Promise((res,rej)=>{
+ if(!window.google||!google.accounts){rej("Google aún no cargó, probá de nuevo en un segundo.");return}
+ const tc=google.accounts.oauth2.initTokenClient({
+  client_id:CONFIG.google.clientId, scope:CONFIG.google.scopes,
+  callback:(resp)=>{if(resp&&resp.access_token){_gToken=resp.access_token;res(_gToken)}else rej("No se pudo iniciar sesión.")}
+ });
+ tc.requestAccessToken();
+})}
+async function gFetch(url){
+ if(!_gToken)await googleLogin();
+ let r=await fetch(url,{headers:{Authorization:"Bearer "+_gToken}});
+ if(r.status===401){_gToken=null;await googleLogin();r=await fetch(url,{headers:{Authorization:"Bearer "+_gToken}})}
+ return r;
+}
+async function widgetGmail(){
+ const box=document.createElement("div");box.style.cssText="overflow:auto;height:100%";box.textContent="Conectando con Gmail…";
+ const W=widget("GMAIL",box,380,420);
+ try{
+  const r=await gFetch("https://gmail.googleapis.com/gmail/v1/users/me/messages?q=is:unread&maxResults=10");
+  if(!r.ok)throw 0; const j=await r.json();
+  if(!j.messages||!j.messages.length){box.textContent="No tenés correos sin leer.";decir("No tenés correos sin leer, señor.");return}
+  decir(`Tenés ${j.messages.length} correos sin leer.`);
+  box.innerHTML="";
+  for(const m of j.messages){
+   const d=await (await gFetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${m.id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject`)).json();
+   const h=(d.payload&&d.payload.headers)||[]; const de=(h.find(x=>x.name==="From")||{}).value||"?"; const asu=(h.find(x=>x.name==="Subject")||{}).value||"(sin asunto)";
+   const it=document.createElement("div");it.style.cssText="padding:8px;border-bottom:1px solid rgba(255,255,255,.12)";
+   it.innerHTML=`<b style="font-size:13px">${asu}</b><br><span style="opacity:.7;font-size:12px">${de}</span>`;
+   box.append(it);
+  }
+ }catch(e){box.textContent="No pude leer tu Gmail. Revisá el login de Google.";decir("No pude conectar con tu Gmail, señor.")}
+}
+async function widgetClassroom(){
+ const box=document.createElement("div");box.style.cssText="overflow:auto;height:100%";box.textContent="Conectando con Classroom…";
+ const W=widget("CLASSROOM",box,380,440);
+ try{
+  const r=await gFetch("https://classroom.googleapis.com/v1/courses?courseStates=ACTIVE&pageSize=15");
+  if(!r.ok)throw 0; const j=await r.json();
+  const cursos=j.courses||[];
+  if(!cursos.length){box.textContent="No encontré cursos activos.";decir("No encontré cursos activos, señor.");return}
+  box.innerHTML="";
+  for(const c of cursos){
+   const sec=document.createElement("div");sec.style.cssText="padding:8px 0;border-bottom:1px solid rgba(255,255,255,.12)";
+   sec.innerHTML=`<b>${c.name}</b>`;box.append(sec);
+   try{
+    const tr=await (await gFetch(`https://classroom.googleapis.com/v1/courses/${c.id}/courseWork?orderBy=dueDate%20desc&pageSize=5`)).json();
+    (tr.courseWork||[]).forEach(t=>{const it=document.createElement("div");it.style.cssText="font-size:12px;opacity:.85;padding:3px 0 3px 10px";it.textContent="• "+t.title;sec.append(it)});
+   }catch{}
+  }
+  decir(`Tenés ${cursos.length} cursos activos en Classroom.`);
+ }catch(e){box.textContent="No pude leer tu Classroom. Revisá el login de Google.";decir("No pude conectar con tu Classroom, señor.")}
+}
+/* ====== NOTAS / RECORDATORIOS ====== */
+function notasGet(){try{return JSON.parse(localStorage.getItem("jarvisNotas")||"[]")}catch{return[]}}
+function notasSet(a){localStorage.setItem("jarvisNotas",JSON.stringify(a))}
+function widgetNotas(){
+ const box=document.createElement("div");box.style.cssText="display:flex;flex-direction:column;height:100%;gap:8px";
+ const lista=document.createElement("div");lista.style.cssText="flex:1;overflow:auto;display:flex;flex-direction:column;gap:6px";
+ function render(){lista.innerHTML="";const notas=notasGet();
+  if(!notas.length){lista.innerHTML="<div style=opacity:.6>Sin notas por ahora.</div>";return}
+  notas.forEach((n,i)=>{const row=document.createElement("div");row.style.cssText="display:flex;justify-content:space-between;align-items:center;gap:8px;background:#ffffff14;border-radius:8px;padding:6px 10px";
+   row.innerHTML=`<span style="font-size:14px">${n}</span><b style="cursor:pointer;opacity:.7" title="borrar">✕</b>`;
+   row.querySelector("b").onclick=()=>{const arr=notasGet();arr.splice(i,1);notasSet(arr);render()};
+   lista.append(row)})}
+ render();
+ box.append(lista);
+ widget("NOTAS",box,320,280);
+ return render}
+function agregarNota(txt){if(!txt)return;const arr=notasGet();arr.push(txt.trim());notasSet(arr)}
+/* ====== TIMER / CRONÓMETRO ====== */
+function widgetTimer(segIni){
+ const box=document.createElement("div");box.style.cssText="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:10px";
+ const num=document.createElement("div");num.style.cssText="font-size:48px;font-weight:700;letter-spacing:2px";
+ const btns=document.createElement("div");btns.style.cssText="display:flex;gap:10px";
+ const bPause=document.createElement("button");bPause.textContent="⏸";
+ const bReset=document.createElement("button");bReset.textContent="↺";
+ [bPause,bReset].forEach(b=>b.style.cssText="padding:8px 14px;border-radius:8px;border:1px solid #ffffff33;background:#ffffff14;color:inherit;font-size:18px;cursor:pointer");
+ btns.append(bPause,bReset);box.append(num,btns);
+ const W=widget("TEMPORIZADOR",box,260,220);
+ let restante=segIni,pausado=false,iv=null;
+ function fmt(s){const m=Math.floor(s/60),ss=s%60;return`${m}:${ss.toString().padStart(2,"0")}`}
+ function tick(){if(pausado)return;restante--;num.textContent=fmt(Math.max(0,restante));
+  if(restante<=0){clearInterval(iv);num.textContent="¡Listo!";sonarAlarma();decir("Se terminó el tiempo, señor.")}}
+ num.textContent=fmt(restante);iv=setInterval(tick,1000);
+ bPause.onclick=()=>{pausado=!pausado;bPause.textContent=pausado?"▶":"⏸"};
+ bReset.onclick=()=>{restante=segIni;pausado=false;bPause.textContent="⏸";num.textContent=fmt(restante)};
+ const obs=new MutationObserver(()=>{if(!document.body.contains(W)){clearInterval(iv);obs.disconnect()}});obs.observe(document.body,{childList:true})}
+function sonarAlarma(){try{const ctx=new(window.AudioContext||window.webkitAudioContext)();
+  [0,.3,.6].forEach(t=>{const o=ctx.createOscillator(),g=ctx.createGain();o.frequency.value=880;o.connect(g);g.connect(ctx.destination);
+   g.gain.setValueAtTime(0,ctx.currentTime+t);g.gain.linearRampToValueAtTime(.3,ctx.currentTime+t+.02);g.gain.linearRampToValueAtTime(0,ctx.currentTime+t+.25);
+   o.start(ctx.currentTime+t);o.stop(ctx.currentTime+t+.26)})}catch(e){}}
+function parsearMinutos(t){const m=t.match(/(\d+)\s*(?:min|minuto|minutos)/),s=t.match(/(\d+)\s*(?:seg|segundo|segundos)/);
+ let total=0;if(m)total+=parseInt(m[1])*60;if(s)total+=parseInt(s[1]);return total||300}
+/* ====== TRADUCTOR ====== */
+async function widgetTraductor(frase,idioma){
+ const box=document.createElement("div");box.style.cssText="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:10px;text-align:center;padding:0 10px";
+ const orig=document.createElement("div");orig.style.cssText="opacity:.7;font-size:14px";orig.textContent=frase;
+ const res=document.createElement("div");res.style.cssText="font-size:22px;font-weight:600";res.textContent="Traduciendo…";
+ box.append(orig,res);widget("TRADUCTOR",box,320,180);
+ const destino={ingles:"en",english:"en",frances:"fr",francés:"fr",portugues:"pt",portugués:"pt",italiano:"it",aleman:"de",alemán:"de"}[idioma]||"en";
+ try{const r=await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(frase)}&langpair=es|${destino}`);
+  const j=await r.json();const txt=j?.responseData?.translatedText||"No pude traducir eso.";res.textContent=txt;decir(txt)}
+ catch(e){res.textContent="No pude traducir eso.";decir("No pude traducir eso, señor.")}}
+/* ====== CALCULADORA ====== */
+function calcularTexto(t){
+ let e=t.replace(/mas|más/g,"+").replace(/menos/g,"-").replace(/dividido(?: por)?/g,"/").replace(/por/g,"*")
+  .replace(/cuanto es|cuánto es|cuanto son|cuánto son|calcula|calculame|calculá/g,"").trim();
+ if(!/^[0-9+\-*/.,() ]+$/.test(e))return null;
+ try{const v=Function(`"use strict";return(${e.replace(/,/g,".")})`)();return Number.isFinite(v)?v:null}catch{return null}}
+function widgetCalculadora(expr,resultado){
+ const box=document.createElement("div");box.style.cssText="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:8px;text-align:center";
+ box.innerHTML=`<div style="opacity:.7;font-size:15px">${expr}</div><div style="font-size:40px;font-weight:700">${resultado}</div>`;
+ widget("CALCULADORA",box,260,180)}
+
+function widgetHora(){
+ const box=document.createElement("div");box.style.cssText="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:6px;text-align:center";
+ const reloj=document.createElement("div");reloj.style.cssText="font-size:40px;font-weight:700;letter-spacing:2px";
+ const fecha=document.createElement("div");fecha.style.cssText="opacity:.75;font-size:13px;text-transform:capitalize";
+ const clima=document.createElement("div");clima.style.cssText="margin-top:10px;font-size:15px";clima.textContent="Buscando el clima…";
+ box.append(reloj,fecha,clima);
+ const W=widget("HORA Y CLIMA",box,280,220);
+ function tick(){const n=new Date();reloj.textContent=n.toLocaleTimeString("es-AR",{hour:"2-digit",minute:"2-digit"});
+  fecha.textContent=n.toLocaleDateString("es-AR",{weekday:"long",day:"numeric",month:"long"})}
+ tick();const iv=setInterval(tick,30000);
+ const obs=new MutationObserver(()=>{if(!document.body.contains(W)){clearInterval(iv);obs.disconnect()}});obs.observe(document.body,{childList:true});
+ const emoji=c=>c===0?"☀️":[1,2,3].includes(c)?"🌤️":[45,48].includes(c)?"🌫️":[51,53,55,56,57,61,63,65,66,67,80,81,82].includes(c)?"🌧️":[71,73,75,77,85,86].includes(c)?"❄️":[95,96,99].includes(c)?"⛈️":"🌡️";
+ navigator.geolocation?navigator.geolocation.getCurrentPosition(async p=>{
+   try{const r=await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${p.coords.latitude}&longitude=${p.coords.longitude}&current_weather=true`);
+    const j=await r.json();const cw=j.current_weather;
+    clima.innerHTML=`${emoji(cw.weathercode)} ${Math.round(cw.temperature)}°C`;
+   }catch{clima.textContent="No pude obtener el clima."}
+ },()=>{clima.textContent="Activá la ubicación para ver el clima."}):(clima.textContent="Tu navegador no da ubicación.")}
+function widgetWiki(q){
+ const box=document.createElement("div");box.style.cssText="display:flex;flex-direction:column;gap:8px;height:100%";
+ const fila=document.createElement("div");fila.style.cssText="display:flex;gap:6px";
+ const inp=document.createElement("input");inp.placeholder="Buscar en Wikipedia…";inp.style.cssText="flex:1;padding:8px;border-radius:8px;border:1px solid #37b6ff;background:#0a2238;color:#dff4ff";
+ const go=document.createElement("button");go.textContent="Buscar";fila.append(inp,go);
+ const out=document.createElement("div");out.style.cssText="flex:1;overflow:auto";box.append(fila,out);
+ const W=widget("WIKIPEDIA",box,400,440);
+ const api="https://es.wikipedia.org/";
+ async function ver(t){out.innerHTML="Cargando…";
+  try{const r=await fetch(`${api}api/rest_v1/page/summary/${encodeURIComponent(t)}`);if(!r.ok)throw 0;const j=await r.json();
+   out.innerHTML=`${j.thumbnail?`<img src="${j.thumbnail.source}" style="width:100%;height:auto;max-height:180px;object-fit:cover;border-radius:8px;margin-bottom:8px">`:""}<h3 style="margin:4px 0">${j.title}</h3><p style="margin:0 0 8px">${j.extract}</p>`;
+   const v=document.createElement("button");v.textContent="← Volver";v.onclick=()=>buscar(inp.value||t);
+   const a=document.createElement("button");a.textContent="Abrir en Wikipedia";a.style.marginLeft="6px";a.onclick=()=>window.open(j.content_urls.desktop.page,"_blank");
+   out.append(v,a);decir(j.extract.split(". ")[0]+".")}
+  catch{out.textContent="No pude cargar esa página."}}
+ async function buscar(t){if(!t){out.innerHTML="Escribí o decime qué buscar.";return}inp.value=t;out.innerHTML="Buscando…";
+  try{const r=await fetch(`${api}w/api.php?action=query&list=search&srsearch=${encodeURIComponent(t)}&srlimit=6&format=json&origin=*`);const j=await r.json();
+   const res=j.query.search;out.innerHTML="";if(!res.length){out.textContent="Sin resultados.";return}
+   res.forEach(x=>{const b=document.createElement("button");b.textContent=x.title;b.style.cssText="display:block;width:100%;text-align:left;margin-bottom:6px";b.onclick=()=>ver(x.title);out.appendChild(b)})}
+  catch{out.textContent="No pude conectar con Wikipedia."}}
+ go.onclick=()=>buscar(inp.value.trim());inp.onkeydown=e=>{if(e.key==="Enter")go.click()};
+ if(q)buscar(q);else out.innerHTML="Decime qué buscar, por ejemplo: «Jarvis, busca sistema solar en Wikipedia».";
+ return W}
+
+/* ====== ALEXA (Voice Monkey v3) ====== */
+const quitar=x=>x.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
+async function alexa(a){const c=CONFIG.alexa;
+ if(!c.token||/PEGAR/.test(c.token)||/PEGAR/.test(a.device)){decir("Falta configurar Alexa, señor.");return}
+ const u=`https://api-v3.voicemonkey.io/trigger?token=${encodeURIComponent(c.token)}&device=${encodeURIComponent(a.device)}`;
+ try{const r=await fetch(u);decir(r.ok?"Hecho, señor.":"Alexa rechazó la orden, señor.")}
+ catch{try{await fetch(u,{mode:"no-cors"});decirVar(["Hecho, señor.","Listo, señor.","Ya está, señor.","Como ordene, señor."])}catch{decir("No pude contactar a Alexa, señor.")}}}
+function widgetCasa(){const d=document.createElement("div");d.style.cssText="display:flex;flex-direction:column;gap:8px";
+ const bt=[];(CONFIG.alexa.dispositivos||[]).forEach(x=>{bt.push({nombre:x.nombre+" · encender",device:x.encender},{nombre:x.nombre+" · apagar",device:x.apagar})});
+ bt.push(...(CONFIG.alexa.acciones||[]));
+ bt.forEach(a=>{const b=document.createElement("button");b.textContent=a.nombre;b.onclick=()=>alexa(a);d.appendChild(b)});
+ widget("CASA · ALEXA",d,300,70+46*bt.length)}
+
+/* ====== COMANDOS ====== */
+const abrir=u=>window.open(u,"_blank");
+async function wiki(q){try{const r=await fetch(`https://es.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(q)}`);
+ if(!r.ok)throw 0;const j=await r.json();widget(j.title.toUpperCase(),`<p>${j.extract}</p>`,380,280);decir(j.extract.split(". ")[0]+".")}
+ catch{decir("No encontré información, señor. Abro una búsqueda.");abrir("https://www.google.com/search?q="+encodeURIComponent(q))}}
+function comando(t){
+ t=t.toLowerCase().replace(/[¿?¡!.,]/g,"").trim();if(!t)return;
+ // separar varias órdenes dichas juntas ("abrí spotify y abrí wikipedia")
+ const partes=t.split(/\s+(?:y tambi[eé]n|y adem[aá]s|y despu[eé]s|y luego|,?\s*y)\s+(?=abr[ií]|pon[eé]|cerr[aá]|busc|apaga|enciende|prende|activa|desactiva|muestra|reproduce|investiga|googlea|revisa)/);
+ if(partes.length>1){partes.forEach((p,i)=>setTimeout(()=>ejecutarComando(p.trim()),i*1400));return}
+ ejecutarComando(t)}
+function ejecutarComando(t){
+ if(!t)return;let m;
+ const nt=quitar(t),ds=CONFIG.alexa.dispositivos||[];
+ const on=/\b(enciende|enciendela|enciendelo|encender|prende|prendela|prendelo|prender|activa|activala|activalo)\b/.test(nt),off=/\b(apaga|apagala|apagalo|apagar|desactiva|desactivala|desactivalo)\b/.test(nt);
+ if((on||off)&&ds.length){const d=ds.find(x=>x.alias.some(w=>nt.includes(quitar(w))))||(/\b(la|lo|las|los)\b|ala\b|alo\b/.test(nt)||ds.length===1?window._ultimo||ds[0]:null);
+   if(d){window._ultimo=d;alexa({device:on?d.encender:d.apagar});return}}
+ const ac=(CONFIG.alexa.acciones||[]).find(a=>a.frases.some(f=>nt.includes(quitar(f))));
+ if(ac){alexa(ac);return}
+ if(/\b(casa|dispositivos|domotica)\b/.test(nt)){decir("Panel de la casa.");widgetCasa();return}
+ if(/\b(hora|reloj|clima|temperatura|tiempo)\b/.test(nt)){decirVar(["Acá tiene, señor.","Aquí está, señor."]);widgetHora();return}
+ if(/resumen del dia|resumen de hoy/.test(nt)){decir("Acá tiene el resumen, señor.");widgetHora();if(window._googleToken)widgetClassroom();return}
+ if(/(anota|anotá|agrega(r)? nota|recordame|recuerdame)\b/.test(nt)){const n=t.replace(/^(anota|anotá|agrega(r)? nota|recordame|recuerdame)\s*(que|:)?\s*/,"");agregarNota(n);decirVar(["Anotado, señor.","Listo, lo anoté.","Guardado, señor."]);widgetNotas();return}
+ if(/\b(mis notas|ver notas|notas|recordatorios)\b/.test(nt)){decir("Acá están sus notas.");widgetNotas();return}
+ if(/\b(timer|temporizador|alarma|avisame en|poné un timer|pone un timer)\b/.test(nt)){const seg=parsearMinutos(nt);decirVar(["Timer puesto, señor.","Temporizador en marcha, señor."]);widgetTimer(seg);return}
+ if((m=nt.match(/como se dice\s+(.+?)\s+en\s+(ingles|frances|portugues|italiano|aleman|english)/))){decir("Traduciendo.");widgetTraductor(m[1],m[2]);return}
+ if(/\b(cuanto es|cuanto son|calcula|calculame|calcula)\b/.test(nt)){const r=calcularTexto(t);if(r!==null){widgetCalculadora(t,r);decir("El resultado es "+r+", señor.")}else decir("No pude calcular eso, señor.");return}
+ if(/gmail|correo|correos|mail\b/.test(nt)){decir("Revisando tu Gmail.");widgetGmail();return}
+ if(/classroom|tareas|clases/.test(nt)){decir("Revisando Classroom.");widgetClassroom();return}
+ if(/wikipedia/.test(nt)){const q1=nt.match(/(?:busca|buscar|investiga|dime)\s+(.+?)\s+en wikipedia/),q2=nt.match(/wikipedia\s+(?:sobre|de|acerca de|con)\s+(.+)/);
+   decir("Abriendo Wikipedia.");widgetWiki((q1&&q1[1])||(q2&&q2[1])||"");return}
+ if(/spotify|m[uú]sica/.test(t)){const c=t.match(/(?:pon|reproduce|busca)\s+(.+?)(?:\s+en spotify)?$/);
+   if(c&&!/^spotify$/.test(c[1])){decir("Buscando en Spotify.");abrir("https://open.spotify.com/search/"+encodeURIComponent(c[1]))}else{decir("Abriendo Spotify.");abrirSpotify()}}
+ else if((m=t.match(/busca(?:r)?\s+(.+?)\s+en youtube/))||(m=t.match(/youtube\s+(.+)/))&&!/^abre/.test(t)){decir("Buscando en YouTube.");abrir("https://www.youtube.com/results?search_query="+encodeURIComponent(m[1]))}
+ else if(/youtube/.test(t)){decir("Abriendo YouTube.");abrir("https://www.youtube.com")}
+ else if((m=t.match(/(?:qu[eé] es|qui[eé]n es|qui[eé]n fue|cu[eé]ntame sobre|dime sobre)\s+(.+)/))){wiki(m[1])}
+ else if((m=t.match(/(?:busca(?:r)?|googlea|investiga)\s+(.+)/))){decir("Buscando.");abrir("https://www.google.com/search?q="+encodeURIComponent(m[1]))}
+ else if(/google/.test(t)){decir("Abriendo Google.");abrir("https://www.google.com")}
+ else if(/archivo|abrir? (un )?documento/.test(t)){decir("Seleccione el archivo, señor.");widgetArchivos()}
+ else if(/agranda|m[aá]s grande|aumenta|achica|m[aá]s peque|reduce/.test(t)){const f=/agranda|grande|aumenta/.test(t)?1.35:.74;
+   const ws=[...document.querySelectorAll(".w")],w=/bola|orbe|esfera/.test(t)?null:ws.at(-1);
+   if(w){const r=w.getBoundingClientRect();w.style.width=Math.max(160,r.width*f)+"px";w.style.height=Math.max(110,r.height*f)+"px"}else{os=Math.max(80,Math.min(600,os*f));posOrb()}decir("Listo.")}
+ else if(/suelta|soltar/.test(t)){releaseGrab(0);releaseGrab(1);decir("Soltado.")}
+ else if(/olvida mi cara|reconoceme|re conoceme|escanea(me)? de nuevo/.test(nt)){localStorage.removeItem("jarvisFace");caraEscaneada=false;decir("Listo, te escaneo de nuevo.");iniciarReconocimientoFacial()}
+ else if(/cierra|cerrar/.test(t)){if(/todo|todos|todas/.test(t))cerrarTodo();else{const ws=[...document.querySelectorAll(".w")];ws.at(-1)?.remove();decir("Hecho.")}}
+ else if(/desaparece|gu[aá]rdate|ocúltate/.test(t)){orbOn=false;orb.style.display="none";decir("A sus órdenes.")}
+ else decir("No entendí la orden, señor.")}
+
+/* ====== VOZ (entrada) ====== */
+function escuchar(){const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+ if(!SR){$("hud").textContent="Usá Chrome para el reconocimiento de voz";return}
+ const r=new SR();r.lang="es-AR";r.continuous=true;r.interimResults=false;
+ r.onresult=e=>{const t=e.results[e.results.length-1][0].transcript.toLowerCase();
+  const i=t.indexOf(CONFIG.wake);
+  if(i>=0){awakeUntil=Date.now()+10000;showOrb();let saludoNuevo=false;if(!window._saludado){window._saludado=true;saludoNuevo=true;decir(CONFIG.saludo)}else{decir("Sí.")}const resto=t.slice(i+CONFIG.wake.length);
+   if(resto.trim().length>2)setTimeout(()=>comando(resto),saludoNuevo?1400:600)}
+  else if(Date.now()<awakeUntil){awakeUntil=Date.now()+10000;comando(t)}};
+ r.onerror=e=>{if(e.error==="not-allowed")$("hud").textContent="Micrófono bloqueado: abrí el archivo desde tu PC y permitilo en el candado de la barra."};
+ r.onend=()=>setTimeout(()=>{try{r.start()}catch{}},300);r.start()}
+
+/* ====== ORBE + GESTOS ====== */
+let ox=innerWidth/2,oy=innerHeight/2,os=170,orz=0;
+function posOrb(){orb.style.width=orb.style.height=os+"px";orb.style.transform=`translate(${ox-os/2}px,${oy-os/2}px) rotate(${orz}deg)`}
+function showOrb(){if(orbOn)return;orbOn=true;orb.style.display="flex";posOrb()}
+const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
+function toScreen(p){const vw=v.videoWidth,vh=v.videoHeight,s=Math.max(innerWidth/vw,innerHeight/vh);
+ return{x:innerWidth/2+((1-p.x)*vw-vw/2)*s,y:innerHeight/2+(p.y*vh-vh/2)*s}}
+const grabs=[null,null],szs=[0,0],pst=[null,null];let lastTap=null;let wasTwo=false;let clasp=0,lastClasp=0,rs=null;
+const openPos=[null,null];let swipeCd=0;
+/* ====== RECONOCIMIENTO FACIAL (solo la primera vez por sesión) ====== */
+let caraEscaneada=false,modelosFaceOk=false,cargandoFace=false;
+const FACE_MODEL_URL="https://justadudewhohacks.github.io/face-api.js/models";
+async function cargarModelosFace(){
+ if(modelosFaceOk||cargandoFace||!window.faceapi)return;cargandoFace=true;
+ try{await Promise.all([faceapi.nets.tinyFaceDetector.loadFromUri(FACE_MODEL_URL),faceapi.nets.faceLandmark68Net.loadFromUri(FACE_MODEL_URL),faceapi.nets.faceRecognitionNet.loadFromUri(FACE_MODEL_URL)]);modelosFaceOk=true}
+ catch(e){console.warn("No se pudieron cargar los modelos de reconocimiento facial",e)}
+ cargandoFace=false}
+let scanBoxEl=null,faceLoopOn=false;
+function scanBox(){if(!scanBoxEl){scanBoxEl=document.createElement("div");scanBoxEl.id="scanbox";document.body.appendChild(scanBoxEl)}return scanBoxEl}
+async function intentoEscaneo(){
+ const box=scanBox();box.style.display="block";
+ const fin=Date.now()+2600;let mejor=null;
+ while(Date.now()<fin){
+  try{const det=await faceapi.detectSingleFace(v,new faceapi.TinyFaceDetectorOptions({inputSize:224})).withFaceLandmarks().withFaceDescriptor();
+   if(det){mejor=det;const vw=v.videoWidth,vh=v.videoHeight,bx=det.detection.box;
+    const tl=toScreen({x:bx.x/vw,y:bx.y/vh}),br=toScreen({x:(bx.x+bx.width)/vw,y:(bx.y+bx.height)/vh});
+    const l=Math.min(tl.x,br.x),r=Math.max(tl.x,br.x),t=Math.min(tl.y,br.y),bt=Math.max(tl.y,br.y);
+    Object.assign(box.style,{left:l+"px",top:t+"px",width:(r-l)+"px",height:(bt-t)+"px"})}
+  }catch(e){}
+  await new Promise(r=>setTimeout(r,160))}
+ box.style.display="none";
+ if(!mejor)return false;
+ caraEscaneada=true;
+ const guardado=localStorage.getItem("jarvisFace");
+ if(!guardado){localStorage.setItem("jarvisFace",JSON.stringify(Array.from(mejor.descriptor)));decir("Hola, señor. ¿En qué lo puedo ayudar hoy?");return true}
+ const ref=new Float32Array(JSON.parse(guardado));
+ if(faceapi.euclideanDistance(ref,mejor.descriptor)<0.55)decir("Hola, señor. ¿En qué lo puedo ayudar hoy?");
+ return true}
+async function iniciarReconocimientoFacial(){
+ if(faceLoopOn||caraEscaneada)return;faceLoopOn=true;
+ await cargarModelosFace();
+ if(!modelosFaceOk){faceLoopOn=false;return}
+ while(!caraEscaneada){const ok=await intentoEscaneo();if(ok)break;await new Promise(r=>setTimeout(r,1200))}
+ faceLoopOn=false}
+
+function cerrarTodo(dir=1){const ws=[...document.querySelectorAll(".w")];if(!ws.length)return;
+ ws.forEach(w=>{w.style.transition="left .35s ease-in, opacity .35s ease-in";w.style.left=(w.offsetLeft+dir*1400)+"px";w.style.opacity="0"});
+ setTimeout(()=>ws.forEach(w=>w.remove()),360);decir("Listo, señor.")}
+function objetoEn(p){const ws=[...document.querySelectorAll(".w")].reverse();
+ for(const w of ws){const r=w.getBoundingClientRect();if(p.x>r.left&&p.x<r.right&&p.y>r.top&&p.y<r.bottom)return{el:w,type:"w"}}
+ if(orbOn&&Math.hypot(p.x-ox,p.y-oy)<os/2+20)return{type:"orb"};return null}
+function onHands(res){const H=res.multiHandLandmarks||[];
+ // juntar manos
+ if(H.length===2){const d=dist(H[0][9],H[1][9]),sz=(dist(H[0][0],H[0][9])+dist(H[1][0],H[1][9]))/2;
+  if(d<sz*1.1){if(++clasp>6&&Date.now()-lastClasp>2000&&!orbOn){lastClasp=Date.now();const p=toScreen({x:(H[0][9].x+H[1][9].x)/2,y:(H[0][9].y+H[1][9].y)/2});ox=p.x;oy=p.y;showOrb()}}else clasp=0}else clasp=0;
+ // pinza
+ const pin=[],dp=[],hnd=[null,null];
+ for(let i=0;i<2;i++){const h=H[i],dot=$("d"+i);if(!h){dot.style.display="none";pst[i]=null;releaseGrab(i);continue}
+  const sz=dist(h[0],h[9]),abierta=[[8,6],[12,10],[16,14],[20,18]].every(([t,q])=>dist(h[0],h[t])>dist(h[0],h[q])*1.2),pinching=!abierta&&dist(h[4],h[8])<sz*(grabs[i]?.42:.33),p=toScreen({x:(h[4].x+h[8].x)/2,y:(h[4].y+h[8].y)/2});hnd[i]=h;
+  if(pinching&&!pst[i])pst[i]={t:Date.now(),x:p.x,y:p.y,m:0};
+  if(pinching&&pst[i])pst[i].m=Math.max(pst[i].m,Math.hypot(p.x-pst[i].x,p.y-pst[i].y));
+  if(!pinching&&pst[i]){const q=pst[i];pst[i]=null;if(Date.now()-q.t<450&&q.m<60)tap(q.x,q.y)}
+  dp[i]=p;  dot.style.display="block";dot.style.left=p.x+"px";dot.style.top=p.y+"px";dot.style.background=pinching?"#37b6ff":"#fff8";
+  if(abierta){if(!openPos[i])openPos[i]={t:Date.now(),x:p.x,y:p.y};
+   const dt=Date.now()-openPos[i].t,ddx=p.x-openPos[i].x;
+   if(dt<400&&Math.abs(ddx)>130&&Date.now()>swipeCd){swipeCd=Date.now()+1500;cerrarTodo(ddx>0?1:-1);openPos[i]={t:Date.now(),x:p.x,y:p.y}}
+   else if(dt>400)openPos[i]={t:Date.now(),x:p.x,y:p.y}}else openPos[i]=null;
+  if(pinching){pin[i]=p;
+   szs[i]=sz;
+   if(!grabs[i]){const o=objetoEn(p);if(o){grabs[i]={...o,dx:0,dy:0};rebase(grabs[i],p,sz,h);
+     if(o.type==="w")o.el.style.zIndex=++z,o.el.classList.add("hold")}}}
+  else releaseGrab(i)}
+ document.querySelectorAll(".hot").forEach(e=>e.classList.remove("hot"));
+ dp.forEach(p=>{const n=p&&cercano(p.x,p.y);if(n)n.classList.add("hot")});
+ // dos pinzas = separar/juntar manos; una pinza = mover y acercar/alejar la mano para agrandar
+ if(pin[0]&&pin[1]&&(grabs[0]||grabs[1])){const g=grabs[0]||grabs[1],d=Math.hypot(pin[0].x-pin[1].x,pin[0].y-pin[1].y);
+  if(!rs||rs.g!==g){const r=g.type==="w"?g.el.getBoundingClientRect():null;rs={g,d,w:r?r.width:os,h:r?r.height:os}}
+  const k=d/rs.d;wasTwo=true;if(g.type==="w"){g.el.style.width=Math.max(160,rs.w*k)+"px";g.el.style.height=Math.max(110,rs.h*k)+"px"}else{os=Math.max(80,Math.min(600,rs.w*k));posOrb()}}
+ else{rs=null;for(let i=0;i<2;i++){const g=grabs[i];if(!g||!pin[i])continue;
+  if(wasTwo)rebase(g,pin[i],szs[i],hnd[i]);
+  g.k=1; // una mano solo mueve; agrandar es con dos manos, voz o rueda
+  const rz=(g.rz0||0)+(hnd[i]?(angMano(hnd[i])-g.ang0)*57.2958:0);if(g.type==="w")g.el._rz=rz;else orz=rz;
+  if(g.type==="w"){const w=Math.max(160,g.bw*g.k),h=Math.max(110,g.bh*g.k),nl=pin[i].x-g.dx*g.k,nt=pin[i].y-g.dy*g.k;
+   Object.assign(g.el.style,{width:w+"px",height:h+"px",left:nl+"px",top:nt+"px"});
+   g.el.style.transform=`rotateZ(${rz}deg)`}
+  else{os=Math.max(80,Math.min(600,g.bw*g.k));ox=pin[i].x-g.dx*g.k;oy=pin[i].y-g.dy*g.k;posOrb()}}
+  wasTwo=false}}
+function angMano(h){const a=toScreen(h[0]),b=toScreen(h[9]);return Math.atan2(b.y-a.y,b.x-a.x)}
+function rebase(g,p,sz,h){g.sz0=sz;g.k=1;g.ang0=h?angMano(h):0;g.rz0=g.type==="w"?((g.el&&g.el._rz)||0):orz;
+ if(g.type==="w"){const r=g.el.getBoundingClientRect();g.bw=r.width;g.bh=r.height;g.dx=p.x-r.left;g.dy=p.y-r.top}
+ else{g.bw=os;g.dx=p.x-ox;g.dy=p.y-oy}}
+function cercano(x,y){let best=null,bd=70;
+ document.querySelectorAll(".t b,.w button,.w a[href],.w input:not([hidden]),.w summary,.w video,.w audio,.w [role=button]").forEach(b=>{const r=b.getBoundingClientRect();if(!r.width)return;const d=Math.hypot(Math.max(r.left-x,0,x-r.right),Math.max(r.top-y,0,y-r.bottom));if(d<bd){bd=d;best=b}});return best}
+function tap(x,y){const n=Date.now();
+ if(lastTap&&n-lastTap.t<900&&Math.hypot(x-lastTap.x,y-lastTap.y)<120){lastTap=null;clic(x,y)}else lastTap={t:n,x,y}}
+function clic(x,y){const f=document.createElement("div");f.className="ping";f.style.left=x+"px";f.style.top=y+"px";document.body.appendChild(f);setTimeout(()=>f.remove(),600);
+ let e=document.elementFromPoint(x,y);
+ if(e&&e.closest("#orb")){decir("A sus órdenes, señor.");return}
+ const n=cercano(x,y);if(n){if(/^(VIDEO|AUDIO)$/.test(n.tagName))n.paused?n.play():n.pause();else n.click();return}
+ if(!e)return;
+ e=e.closest("button,a,input,video,audio,.t b")||e;e.click&&e.click()}
+function releaseGrab(i){const g=grabs[i];if(g&&g.type==="w"&&g.el){g.el.classList.remove("hold");g.el.style.transition="transform .4s";g.el.style.transform="rotateZ(0)";g.el._rz=0;setTimeout(()=>g.el.style.transition="",400)}
+ if(g&&g.type==="orb"){orz=0;posOrb()}
+ grabs[i]=null;rs=null}
+
+addEventListener("wheel",e=>{const o=objetoEn({x:e.clientX,y:e.clientY});if(!o)return;const f=e.deltaY<0?1.08:.93;
+ if(o.type==="w"){const r=o.el.getBoundingClientRect();o.el.style.width=Math.max(160,r.width*f)+"px";o.el.style.height=Math.max(110,r.height*f)+"px"}else{os=Math.max(80,Math.min(600,os*f));posOrb()}},{passive:true});
+addEventListener("dragover",e=>e.preventDefault());
+addEventListener("drop",e=>{e.preventDefault();if(!window._mostrar)widgetArchivos();window._mostrar(e.dataTransfer.files)});
+/* ====== ARRANQUE ====== */
+$("go").onclick=async()=>{
+ try{const s=await navigator.mediaDevices.getUserMedia({video:{width:1280,height:720},audio:true});v.srcObject=s;await v.play()}
+ catch(e){alert("No pude acceder a cámara/micrófono: "+e.message);return}
+ $("start").remove();elegirVoz();escuchar();iniciarReconocimientoFacial();
+ const hands=new Hands({locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/${f}`});
+ hands.setOptions({maxNumHands:2,modelComplexity:1,minDetectionConfidence:.6,minTrackingConfidence:.6});
+ hands.onResults(onHands);
+ const loop=async()=>{if(v.readyState>=2)await hands.send({image:v});requestAnimationFrame(loop)};loop()}
+</script></body></html>
